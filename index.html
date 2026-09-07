@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Hexa Stack Telegram</title>
-    <!-- Telegram Web App SDK -->
+    <title>Hexa Stack HD</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -26,7 +25,7 @@
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -36,35 +35,33 @@
             width: 100vw;
         }
 
-        /* Header UI */
         header {
             width: 100%;
-            padding: 15px 20px;
+            padding: 12px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             background: var(--card-bg);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            border-bottom-left-radius: 20px;
-            border-bottom-right-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            border-bottom-left-radius: 16px;
+            border-bottom-right-radius: 16px;
             z-index: 10;
         }
 
         .score-container {
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
         }
 
         .score-title {
-            font-size: 12px;
-            color: #8E8E93;
-            text-transform: uppercase;
+            font-size: 11px;
+            color: #A0A0AB;
+            letter-spacing: 1px;
         }
 
         .score-val {
-            font-size: 24px;
-            font-weight: bold;
+            font-size: 26px;
+            font-weight: 800;
             color: var(--accent-color);
         }
 
@@ -72,19 +69,14 @@
             background: #FF3B30;
             border: none;
             color: white;
-            padding: 8px 16px;
+            padding: 10px 18px;
             border-radius: 12px;
             font-weight: bold;
+            font-size: 14px;
             cursor: pointer;
-            box-shadow: 0 4px 10px rgba(255, 59, 48, 0.3);
-            transition: transform 0.1s;
+            box-shadow: 0 4px 12px rgba(255, 59, 48, 0.35);
         }
 
-        .btn-restart:active {
-            transform: scale(0.95);
-        }
-
-        /* Canvas Game Container */
         #game-container {
             flex: 1;
             width: 100%;
@@ -106,7 +98,7 @@
             <span class="score-title">النقاط</span>
             <span id="score" class="score-val">0</span>
         </div>
-        <button class="btn-restart" onclick="restartGame()">إعادة اللعب</button>
+        <button class="btn-restart" onclick="restartGame()">إعادة</button>
     </header>
 
     <div id="game-container">
@@ -114,7 +106,6 @@
     </div>
 
     <script>
-        // --- تهيئة Telegram Web App ---
         const tg = window.Telegram ? window.Telegram.WebApp : null;
         if (tg) {
             tg.expand();
@@ -127,15 +118,14 @@
             }
         }
 
-        // --- أصوات اللعبة (Web Audio API) ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playSound(freq, duration = 0.1, type = 'sine') {
+        function playSound(freq, duration = 0.1) {
             try {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                osc.type = type;
+                osc.type = 'sine';
                 osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
@@ -144,36 +134,39 @@
             } catch(e){}
         }
 
-        // --- ألوان القطع السداسية ---
+        // ألوان مشبعة وجذابة مثل اللعبة الأصلية
         const COLORS = {
-            red: '#FF453A',
-            blue: '#0A84FF',
-            green: '#30D158',
-            yellow: '#FFD60A',
-            purple: '#BF5AF2',
-            orange: '#FF9F0A'
+            red: { top: '#FF5E57', side: '#D63031' },
+            blue: { top: '#0ABDE3', side: '#0097E6' },
+            green: { top: '#1DD1A1', side: '#10AC84' },
+            yellow: { top: '#FECA57', side: '#FF9F43' },
+            purple: { top: '#5F27CD', side: '#341F97' },
+            orange: { top: '#FF9F1A', side: '#E67E22' }
         };
         const COLOR_KEYS = Object.keys(COLORS);
 
-        // --- إعدادات Canvas والتجاوب ---
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        let width, height, hexRadius;
+        let width, height, hexRadius, dpr;
 
+        // مضاعفة أبعاد الـ Canvas لمنع أي ضبابية HD Rendering
         function resize() {
             const container = document.getElementById('game-container');
             width = container.clientWidth;
             height = container.clientHeight;
-            canvas.width = width * window.devicePixelRatio;
-            canvas.height = height * window.devicePixelRatio;
+            dpr = Math.max(window.devicePixelRatio || 1, 2); // 2x على الأقل لضمان حدة الرسومات
+
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
             canvas.style.width = width + 'px';
             canvas.style.height = height + 'px';
-            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-            hexRadius = Math.min(width, height) / 9;
+            
+            ctx.resetTransform();
+            ctx.scale(dpr, dpr);
+            hexRadius = Math.min(width, height) / 8.5;
         }
 
-        // --- بناء الشبكة السداسية (Board Hex Grid) ---
-        const gridRadius = 2; // شبكة من 19 خلية
+        const gridRadius = 2;
         let grid = [];
 
         function initGrid() {
@@ -183,38 +176,30 @@
                 let r2 = Math.min(gridRadius, -q + gridRadius);
                 for (let r = r1; r <= r2; r++) {
                     const pos = hexToPixel(q, r);
-                    grid.push({
-                        q: q,
-                        r: r,
-                        x: pos.x,
-                        y: pos.y,
-                        stack: [] // التكديس داخل الخلية
-                    });
+                    grid.push({ q, r, x: pos.x, y: pos.y, stack: [] });
                 }
             }
         }
 
         function hexToPixel(q, r) {
             const centerX = width / 2;
-            const centerY = height / 2 - 40;
+            const centerY = height / 2 - 30;
             const x = centerX + hexRadius * (Math.sqrt(3) * q + Math.sqrt(3)/2 * r);
             const y = centerY + hexRadius * (3/2 * r);
             return { x, y };
         }
 
-        // --- إدارة الستاقات المتاحة للسحب (Bottom Slots) ---
         let spawnSlots = [null, null, null];
         let draggingSlotIndex = -1;
         let dragPos = { x: 0, y: 0 };
 
         function generateStack() {
-            const stackSize = Math.floor(Math.random() * 4) + 3; // 3 to 6
+            const stackSize = Math.floor(Math.random() * 4) + 3;
             const numColors = Math.random() > 0.5 ? 2 : 1;
             const chosenColors = [];
             for (let i = 0; i < numColors; i++) {
                 chosenColors.push(COLOR_KEYS[Math.floor(Math.random() * COLOR_KEYS.length)]);
             }
-
             const stack = [];
             for (let i = 0; i < stackSize; i++) {
                 stack.push(chosenColors[i % numColors]);
@@ -223,112 +208,112 @@
         }
 
         function refillSlots() {
-            let emptyCount = 0;
-            for (let i = 0; i < 3; i++) {
-                if (!spawnSlots[i]) {
-                    emptyCount++;
-                }
-            }
-            if (emptyCount === 3) {
+            if (spawnSlots.every(s => s === null)) {
                 for (let i = 0; i < 3; i++) {
                     spawnSlots[i] = generateStack();
                 }
             }
         }
 
-        // --- رسم الشكل السداسي ---
-        function drawHexagon(x, y, radius, color, isFlat = true, heightOffset = 0) {
+        // رسم سداسي مع ظلال وحواف ثلاثية الأبعاد احترافية
+        function drawHexTile(x, y, radius, colorObj, offset = 0) {
+            const py = y - offset;
+            
+            // 1. رسم الظل السفلي للقطعة
             ctx.beginPath();
             for (let i = 0; i < 6; i++) {
                 const angle = (Math.PI / 3) * i + (Math.PI / 6);
                 const hx = x + radius * Math.cos(angle);
-                const hy = y - heightOffset + radius * Math.sin(angle);
+                const hy = py + 6 + radius * Math.sin(angle);
                 if (i === 0) ctx.moveTo(hx, hy);
                 else ctx.lineTo(hx, hy);
             }
             ctx.closePath();
+            ctx.fillStyle = colorObj.side;
+            ctx.fill();
 
-            if (isFlat) {
-                ctx.fillStyle = color;
-                ctx.fill();
-                ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            } else {
-                // رسم تأثير ثلاثي الأبعاد للتكديس (3D Hex Tile)
-                ctx.fillStyle = color;
-                ctx.fill();
-                
-                // إضافة ظل/حافة سفلية
-                ctx.fillStyle = 'rgba(0,0,0,0.2)';
-                ctx.beginPath();
-                for (let i = 1; i <= 3; i++) {
-                    const angle = (Math.PI / 3) * i + (Math.PI / 6);
-                    const hx = x + radius * Math.cos(angle);
-                    const hy = y - heightOffset + radius * Math.sin(angle);
-                    if (i === 1) ctx.moveTo(hx, hy);
-                    else ctx.lineTo(hx, hy);
-                }
-                ctx.lineTo(x, y - heightOffset);
-                ctx.fill();
-
-                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-                ctx.lineWidth = 1;
-                ctx.stroke();
+            // 2. رسم السطح العلوي
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i + (Math.PI / 6);
+                const hx = x + radius * Math.cos(angle);
+                const hy = py + radius * Math.sin(angle);
+                if (i === 0) ctx.moveTo(hx, hy);
+                else ctx.lineTo(hx, hy);
             }
+            ctx.closePath();
+            ctx.fillStyle = colorObj.top;
+            ctx.fill();
+
+            // إضاءة الحواف (Highlighting)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+
+        function drawEmptyHex(x, y, radius) {
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i + (Math.PI / 6);
+                const hx = x + radius * Math.cos(angle);
+                const hy = y + radius * Math.sin(angle);
+                if (i === 0) ctx.moveTo(hx, hy);
+                else ctx.lineTo(hx, hy);
+            }
+            ctx.closePath();
+            ctx.fillStyle = '#181A26';
+            ctx.fill();
+            ctx.strokeStyle = '#282B3D';
+            ctx.lineWidth = 2;
+            ctx.stroke();
         }
 
         function drawStack(x, y, stack, radius) {
             for (let i = 0; i < stack.length; i++) {
-                const offset = i * 6; // مسافة التكديس العمودي
-                drawHexagon(x, y, radius, COLORS[stack[i]], false, offset);
+                drawHexTile(x, y, radius, COLORS[stack[i]], i * 7);
             }
         }
 
-        // --- حلقة الرسم الرئيسية (Render Loop) ---
         let score = 0;
 
         function render() {
             ctx.clearRect(0, 0, width, height);
 
-            // 1. رسم شبكة اللعب
+            // شبكة اللعب
             grid.forEach(cell => {
-                drawHexagon(cell.x, cell.y, hexRadius * 0.95, '#222536', true);
+                drawEmptyHex(cell.x, cell.y, hexRadius * 0.95);
                 if (cell.stack.length > 0) {
                     drawStack(cell.x, cell.y, cell.stack, hexRadius * 0.9);
                 }
             });
 
-            // 2. رسم منطقة القطع المتاحة في الأسفل
-            const slotY = height - 80;
+            // منطقة السحب المتاحة في الأسفل
+            const slotY = height - 90;
             const slotSpacing = width / 4;
 
             for (let i = 0; i < 3; i++) {
                 const slotX = slotSpacing * (i + 1);
-                // رسم القواعد المفرغة للفتحات
-                drawHexagon(slotX, slotY, hexRadius * 0.7, '#181A26', true);
+                drawEmptyHex(slotX, slotY, hexRadius * 0.7);
 
                 if (spawnSlots[i] && i !== draggingSlotIndex) {
                     drawStack(slotX, slotY, spawnSlots[i], hexRadius * 0.65);
                 }
             }
 
-            // 3. رسم القطعة المسحوبة حالياً
+            // رسم القطعة المسحوبة
             if (draggingSlotIndex !== -1 && spawnSlots[draggingSlotIndex]) {
-                drawStack(dragPos.x, dragPos.y - 30, spawnSlots[draggingSlotIndex], hexRadius * 0.85);
+                drawStack(dragPos.x, dragPos.y - 40, spawnSlots[draggingSlotIndex], hexRadius * 0.85);
             }
 
             requestAnimationFrame(render);
         }
 
-        // --- منطق حركة اللعبة والدمج (Game Logic & Merge) ---
         function checkAndMerge() {
             let mergedAny = false;
 
             grid.forEach(cell => {
                 if (cell.stack.length === 0) return;
 
-                // البحث عن الجيران
                 const neighbors = grid.filter(n => {
                     const dq = Math.abs(n.q - cell.q);
                     const dr = Math.abs(n.r - cell.r);
@@ -339,9 +324,7 @@
                 const topColor = cell.stack[cell.stack.length - 1];
 
                 neighbors.forEach(n => {
-                    const neighborTopColor = n.stack[n.stack.length - 1];
-                    if (topColor === neighborTopColor) {
-                        // نقل القطع المتطابقة
+                    if (n.stack[n.stack.length - 1] === topColor) {
                         while (n.stack.length > 0 && n.stack[n.stack.length - 1] === topColor) {
                             cell.stack.push(n.stack.pop());
                             mergedAny = true;
@@ -351,24 +334,22 @@
                     }
                 });
 
-                // إذا وصل الكوم إلى 10 قطع متطابقة أو أكثر، يتم حذفها (Clear)
                 if (cell.stack.length >= 10) {
                     cell.stack = [];
-                    score += 150;
+                    score += 200;
                     document.getElementById('score').innerText = score;
-                    playSound(600, 0.2, 'square');
+                    playSound(600, 0.2);
                     triggerHaptic('heavy');
                 }
             });
 
             if (mergedAny) {
-                playSound(440, 0.1);
+                playSound(480, 0.1);
                 triggerHaptic('medium');
-                setTimeout(checkAndMerge, 250); // دمج متسلسل (Cascade)
+                setTimeout(checkAndMerge, 220);
             }
         }
 
-        // --- معالجة إدخالات اللمس والسحب (Touch Events) ---
         function getPointerPos(e) {
             const rect = canvas.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -383,14 +364,13 @@
             if (audioCtx.state === 'suspended') audioCtx.resume();
             
             const pos = getPointerPos(e);
-            const slotY = height - 80;
+            const slotY = height - 90;
             const slotSpacing = width / 4;
 
             for (let i = 0; i < 3; i++) {
                 if (spawnSlots[i]) {
                     const slotX = slotSpacing * (i + 1);
-                    const dist = Math.hypot(pos.x - slotX, pos.y - slotY);
-                    if (dist < hexRadius) {
+                    if (Math.hypot(pos.x - slotX, pos.y - slotY) < hexRadius) {
                         draggingSlotIndex = i;
                         dragPos = pos;
                         triggerHaptic('light');
@@ -408,36 +388,30 @@
         function onPointerUp() {
             if (draggingSlotIndex === -1) return;
 
-            // البحث عن أقرب خلية في الشبكة للإفلات
             let closestCell = null;
             let minDist = hexRadius * 1.2;
 
             grid.forEach(cell => {
-                const dist = Math.hypot(dragPos.x - cell.x, (dragPos.y - 30) - cell.y);
+                const dist = Math.hypot(dragPos.x - cell.x, (dragPos.y - 40) - cell.y);
                 if (dist < minDist) {
                     minDist = dist;
                     closestCell = cell;
                 }
             });
 
-            // إسقاط القطعة في الخلية إذا كانت فارغة
             if (closestCell && closestCell.stack.length === 0) {
                 closestCell.stack = [...spawnSlots[draggingSlotIndex]];
                 spawnSlots[draggingSlotIndex] = null;
-                playSound(300, 0.08);
+                playSound(320, 0.08);
                 triggerHaptic('light');
 
-                // دمج الألوان
                 setTimeout(checkAndMerge, 150);
-                
-                // إعادة ملء الفتحات إذا فرغت
                 refillSlots();
             }
 
             draggingSlotIndex = -1;
         }
 
-        // تسجيل أحداث اللمس والماوس
         canvas.addEventListener('mousedown', onPointerDown);
         window.addEventListener('mousemove', onPointerMove);
         window.addEventListener('mouseup', onPointerUp);
@@ -455,7 +429,6 @@
             triggerHaptic('warning');
         }
 
-        // --- بدء اللعبة ---
         window.addEventListener('resize', resize);
         resize();
         initGrid();
